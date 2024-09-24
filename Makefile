@@ -3,6 +3,6 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := aideck_esp
+PROJECT_NAME := $(notdir $(shell pwd))
 
-include $(IDF_PATH)/make/project.mk
+include $(MDF_PATH)/project.mk

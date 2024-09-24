@@ -1,9 +1,9 @@
-idf_component_register(SRCS "wifi.c"
+idf_component_register(SRCS "./get_started.c"
+                            "wifi.c"
                             "test.c"
                             "com.c"
                             "router.c"
                             "uart_transport.c"
-                            "aideck_esp_main.c"
                             "led.c"
                             "spi_transport.c"
                             "led.c"
@@ -11,4 +11,5 @@ idf_component_register(SRCS "wifi.c"
                             "cpx.c"
                             "system.c"
                             "discovery.c"
-                        INCLUDE_DIRS "")
+                        INCLUDE_DIRS ""
+                        REQUIRES mcommon mconfig mwifi mlink)

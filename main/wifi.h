@@ -49,7 +49,23 @@ typedef struct {
 } __attribute__((packed)) WifiTransportPacket_t;
 
 
-void wifi_init();
+// void wifi_init();
+void wifi_init_streaming();
+void wifi_send_packet(const char * data, size_t size);
+void wifi_task(void *pvParameters);
+void wifi_sending_task(void *pvParameters);
+
+/* Wait (and block) until a connection comes in */
+void wifi_wait_for_socket_connected();
+
+/* Bind socket for incomming connections */
+void wifi_bind_socket();
+
+/* Check if a client is connected */
+bool wifi_is_socket_connected();
+
+/* Wait (and block) for a client to disconnect*/
+void wifi_wait_for_disconnect();
 
 // Interface used by the router
 void wifi_transport_send(const CPXRoutablePacket_t* packet);

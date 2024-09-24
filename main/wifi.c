@@ -44,6 +44,9 @@
 #include <lwip/netdb.h>
 #include "esp_netif.h"
 
+#include "mdf_common.h"
+#include "mwifi.h"
+
 #include "com.h"
 
 static esp_routable_packet_t rxp;
@@ -59,9 +62,9 @@ static const int WIFI_CONNECTED_BIT = BIT0;
 static const int WIFI_SOCKET_DISCONNECTED = BIT1;
 static EventGroupHandle_t s_wifi_event_group;
 
-static const int START_UP_MAIN_TASK = BIT0;
+// static const int START_UP_MAIN_TASK = BIT0;
 static const int START_UP_RX_TASK = BIT1;
-static const int START_UP_TX_TASK = BIT2;
+// static const int START_UP_TX_TASK = BIT2;
 static const int START_UP_CTRL_TASK = BIT3;
 static EventGroupHandle_t startUpEventGroup;
 
@@ -291,25 +294,23 @@ void wifi_wait_for_disconnect() {
   xEventGroupWaitBits(s_wifi_event_group, WIFI_SOCKET_DISCONNECTED, pdTRUE, pdFALSE, portMAX_DELAY);
 }
 
-static void wifi_task(void *pvParameters) {
+void wifi_task(void *pvParameters) {
 
-  s_wifi_event_group = xEventGroupCreate();
+  // esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, event_handler, NULL, NULL);
+  // esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, event_handler, NULL, NULL);
 
-  esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, event_handler, NULL, NULL);
-  esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, event_handler, NULL, NULL);
+  // wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+  // ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-  wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-  ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-  uint8_t mac[6];
-  ESP_ERROR_CHECK(esp_wifi_get_mac(ESP_IF_WIFI_AP, mac));
-  ESP_LOGD(TAG, "AP MAC is %x:%x:%x:%x:%x:%x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-  ESP_ERROR_CHECK(esp_wifi_get_mac(ESP_IF_WIFI_STA, mac));
-  ESP_LOGD(TAG, "STA MAC is %x:%x:%x:%x:%x:%x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  // uint8_t mac[6];
+  // ESP_ERROR_CHECK(esp_wifi_get_mac(ESP_IF_WIFI_AP, mac));
+  // ESP_LOGD(TAG, "AP MAC is %x:%x:%x:%x:%x:%x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  // ESP_ERROR_CHECK(esp_wifi_get_mac(ESP_IF_WIFI_STA, mac));
+  // ESP_LOGD(TAG, "STA MAC is %x:%x:%x:%x:%x:%x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
   wifi_bind_socket();
 
-  xEventGroupSetBits(startUpEventGroup, START_UP_MAIN_TASK);
+  // xEventGroupSetBits(startUpEventGroup, START_UP_MAIN_TASK);
   while (1) {
     //blink_period_ms = 500;
     wifi_wait_for_socket_connected();
@@ -355,12 +356,19 @@ void wifi_send_packet(const char * buffer, size_t size) {
   }
 }
 
-static void wifi_sending_task(void *pvParameters) {
+void wifi_sending_task(void *pvParameters) {
   static WifiTransportPacket_t txp_wifi;
   static CPXRoutablePacket_t qPacket;
+  mdf_err_t ret = MDF_OK;
+  size_t size   = 0;
+  char *data    = MDF_MALLOC(MWIFI_PAYLOAD_LEN);
+  mwifi_data_type_t data_type = {0x0};
 
-  xEventGroupSetBits(startUpEventGroup, START_UP_TX_TASK);
-  while (1) {
+  MDF_LOGI("Node write task is running");
+
+
+  // // xEventGroupSetBits(startUpEventGroup, START_UP_TX_TASK);
+  for (;;) {
     xQueueReceive(wifiTxQueue, &qPacket, portMAX_DELAY);
 
     txp_wifi.payloadLength = qPacket.dataLength + CPX_ROUTING_PACKED_SIZE;
@@ -369,8 +377,33 @@ static void wifi_sending_task(void *pvParameters) {
 
     memcpy(txp_wifi.routablePayload.data, qPacket.data, qPacket.dataLength);
 
-    wifi_send_packet((const char *)&txp_wifi, txp_wifi.payloadLength + 2);
+    if (!mwifi_is_connected()) {
+      ESP_LOGI(TAG, "Waiting for mwifi");
+      vTaskDelay(500/portTICK_RATE_MS);
+    }
+
+    ret = mwifi_write(NULL, &data_type, &txp_wifi, txp_wifi.payloadLength + 2, true);
+    MDF_ERROR_CONTINUE(ret != MDF_OK, "mwifi_write, ret: %x", ret);
   }
+
+    // for (;;) {
+    //     xQueueReceive(wifiTxQueue, &qPacket, portMAX_DELAY);
+    //     if (!mwifi_is_connected()) {
+    //         vTaskDelay(500 / portTICK_RATE_MS);
+    //         continue;
+    //     }
+
+    //     size = sprintf(data, "(%d) Hello root!", count++);
+    //     ret = mwifi_write(NULL, &data_type, data, size, true);
+    //     MDF_ERROR_CONTINUE(ret != MDF_OK, "mwifi_write, ret: %x", ret);
+
+    //     vTaskDelay(1000 / portTICK_RATE_MS);
+    // }
+
+  MDF_LOGW("Node write task is exit");
+
+  MDF_FREE(data);
+  vTaskDelete(NULL);
 }
 
 static void wifi_receiving_task(void *pvParameters) {
@@ -417,33 +450,40 @@ void wifi_transport_receive(CPXRoutablePacket_t* packet) {
   memcpy(packet->data, qPacket.routablePayload.data, packet->dataLength);
 }
 
-void wifi_init() {
-  esp_netif_init();
+// void wifi_init() {
+//   esp_netif_init();
 
-  s_wifi_event_group = xEventGroupCreate();
+//   s_wifi_event_group = xEventGroupCreate();
 
+//   wifiRxQueue = xQueueCreate(WIFI_HOST_QUEUE_LENGTH, sizeof(WifiTransportPacket_t));
+//   wifiTxQueue = xQueueCreate(WIFI_HOST_QUEUE_LENGTH, sizeof(CPXRoutablePacket_t));
+
+//   startUpEventGroup = xEventGroupCreate();
+//   xEventGroupClearBits(startUpEventGroup, START_UP_MAIN_TASK | START_UP_RX_TASK | START_UP_TX_TASK | START_UP_CTRL_TASK);
+//   xTaskCreate(wifi_task, "WiFi TASK", 5000, NULL, 1, NULL);
+//   xTaskCreate(wifi_sending_task, "WiFi TX", 5000, NULL, 1, NULL);
+//   xTaskCreate(wifi_receiving_task, "WiFi RX", 5000, NULL, 1, NULL);
+//   ESP_LOGI(TAG, "Waiting for main, RX and TX tasks to start");
+//   xEventGroupWaitBits(startUpEventGroup,
+//                       START_UP_MAIN_TASK | START_UP_RX_TASK | START_UP_TX_TASK,
+//                       pdTRUE, // Clear bits before returning
+//                       pdTRUE, // Wait for all bits
+//                       portMAX_DELAY);
+
+//   xTaskCreate(wifi_ctrl, "WiFi CTRL", 5000, NULL, 1, NULL);
+//   ESP_LOGI(TAG, "Waiting for CTRL task to start");
+//   xEventGroupWaitBits(startUpEventGroup,
+//                       START_UP_CTRL_TASK,
+//                       pdTRUE, // Clear bits before returning
+//                       pdTRUE, // Wait for all bits
+//                       portMAX_DELAY);
+
+//   ESP_LOGI("WIFI", "Wifi initialized");
+// }
+
+void wifi_init_streaming() {
   wifiRxQueue = xQueueCreate(WIFI_HOST_QUEUE_LENGTH, sizeof(WifiTransportPacket_t));
   wifiTxQueue = xQueueCreate(WIFI_HOST_QUEUE_LENGTH, sizeof(CPXRoutablePacket_t));
-
-  startUpEventGroup = xEventGroupCreate();
-  xEventGroupClearBits(startUpEventGroup, START_UP_MAIN_TASK | START_UP_RX_TASK | START_UP_TX_TASK | START_UP_CTRL_TASK);
-  xTaskCreate(wifi_task, "WiFi TASK", 5000, NULL, 1, NULL);
-  xTaskCreate(wifi_sending_task, "WiFi TX", 5000, NULL, 1, NULL);
-  xTaskCreate(wifi_receiving_task, "WiFi RX", 5000, NULL, 1, NULL);
-  ESP_LOGI(TAG, "Waiting for main, RX and TX tasks to start");
-  xEventGroupWaitBits(startUpEventGroup,
-                      START_UP_MAIN_TASK | START_UP_RX_TASK | START_UP_TX_TASK,
-                      pdTRUE, // Clear bits before returning
-                      pdTRUE, // Wait for all bits
-                      portMAX_DELAY);
-
-  xTaskCreate(wifi_ctrl, "WiFi CTRL", 5000, NULL, 1, NULL);
-  ESP_LOGI(TAG, "Waiting for CTRL task to start");
-  xEventGroupWaitBits(startUpEventGroup,
-                      START_UP_CTRL_TASK,
-                      pdTRUE, // Clear bits before returning
-                      pdTRUE, // Wait for all bits
-                      portMAX_DELAY);
-
-  ESP_LOGI("WIFI", "Wifi initialized");
+  tcpip_adapter_init();
+  s_wifi_event_group = xEventGroupCreate();
 }
