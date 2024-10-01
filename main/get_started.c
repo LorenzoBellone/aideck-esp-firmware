@@ -43,7 +43,7 @@ static uint32_t blink_on_period_ms = 1000;
 static uint32_t blink_off_period_ms = 1000;
 
 
-static const char *TAG = "get_started";
+static const char *TAG = "rssi";
 static esp_routable_packet_t txp;
 
 static void root_task(void *arg)
@@ -54,7 +54,7 @@ static void root_task(void *arg)
     uint8_t src_addr[MWIFI_ADDR_LEN] = {0x0};
     mwifi_data_type_t data_type      = {0};
 
-    MDF_LOGI("Root is running");
+    // MDF_LOGI("Root is running");
 
     for (int i = 0;; ++i) {
         if (!mwifi_is_started()) {
@@ -121,17 +121,20 @@ static void print_system_info_timercb(void *timer)
 }
 
 
-static void log_stats_timercb(void *timer)
+static void log_stats_task()
 {
-    wifi_sta_list_t wifi_sta_list   = {0x0};
-    esp_wifi_ap_get_sta_list(&wifi_sta_list);
+    while (1){
+        wifi_sta_list_t wifi_sta_list   = {0x0};
+        esp_wifi_ap_get_sta_list(&wifi_sta_list);
 
-    MDF_LOGI("RSSI p  %d", mwifi_get_parent_rssi());
-    for (int i = 0; i < wifi_sta_list.num; i++) {
-        MDF_LOGI("RSSI c%d %d", i, wifi_sta_list.sta[i].rssi);
+        ESP_LOGI(TAG, "RSSI p  %d", mwifi_get_parent_rssi());
+        for (int i = 0; i < wifi_sta_list.num; i++) {
+            ESP_LOGI(TAG, "RSSI c%d %d", i, wifi_sta_list.sta[i].rssi);
+        }
+        ESP_LOGI(TAG, "LAYER %d", esp_mesh_get_layer());
+        ESP_LOGI(TAG, "NODES %d", esp_mesh_get_total_node_num());
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
-    MDF_LOGI("LAYER %d", esp_mesh_get_layer());
-    MDF_LOGI("NODES %d", esp_mesh_get_total_node_num());
 }
 
 
@@ -172,26 +175,26 @@ static mdf_err_t wifi_init()
  */
 static mdf_err_t event_loop_cb(mdf_event_loop_t event, void *ctx)
 {
-    MDF_LOGI("event_loop_cb, event: %d", event);
+    // MDF_LOGI("event_loop_cb, event: %d", event);
 
     switch (event) {
         case MDF_EVENT_MWIFI_STARTED:
-            MDF_LOGI("MESH is started");
+            // MDF_LOGI("MESH is started");
             break;
 
         case MDF_EVENT_MWIFI_PARENT_CONNECTED:
-            MDF_LOGI("Parent is connected on station interface");
+            // MDF_LOGI("Parent is connected on station interface");
             break;
 
         case MDF_EVENT_MWIFI_PARENT_DISCONNECTED:
-            MDF_LOGI("Parent is disconnected on station interface");
+            // MDF_LOGI("Parent is disconnected on station interface");
             break;
         case MDF_EVENT_MWIFI_ROUTING_TABLE_ADD:
         case MDF_EVENT_MWIFI_ROUTING_TABLE_REMOVE:
-            MDF_LOGI("total_num: %d", esp_mesh_get_total_node_num());
+            // MDF_LOGI("total_num: %d", esp_mesh_get_total_node_num());
             break;
         case MDF_EVENT_MWIFI_ROOT_GOT_IP:
-            MDF_LOGI("Root obtains the IP address. It is posted by LwIP stack automatically");
+            // MDF_LOGI("Root obtains the IP address. It is posted by LwIP stack automatically");
             // xTaskCreate(tcp_client_write_task, "tcp_client_write_task", 4 * 1024,
             //             NULL, CONFIG_MDF_TASK_DEFAULT_PRIOTY, NULL);
             // xTaskCreate(tcp_client_read_task, "tcp_server_read", 4 * 1024,
@@ -250,29 +253,23 @@ void app_main()
      * @brief Set the log level for serial port printing.
      */
     esp_log_level_set("*", ESP_LOG_ERROR);
-    esp_log_level_set("SPI", ESP_LOG_INFO);
-    esp_log_level_set("UART", ESP_LOG_INFO);
-    esp_log_level_set("SYS", ESP_LOG_INFO);
-    esp_log_level_set("ROUTER", ESP_LOG_INFO);
-    esp_log_level_set("COM", ESP_LOG_INFO);
-    esp_log_level_set("TEST", ESP_LOG_INFO);
-    esp_log_level_set("WIFI", ESP_LOG_INFO);
-
-    /**
-     * @brief Initialize wifi mesh.
-     */
-    MDF_ERROR_ASSERT(mdf_event_loop_init(event_loop_cb));
-    MDF_ERROR_ASSERT(wifi_init());
-    MDF_ERROR_ASSERT(mwifi_init(&cfg));
-    MDF_ERROR_ASSERT(mwifi_set_config(&config));
-    MDF_ERROR_ASSERT(mwifi_start());
+    esp_log_level_set(TAG, ESP_LOG_INFO);
+    // esp_log_level_set("SPI", ESP_LOG_ERROR);
+    // esp_log_level_set("UART", ESP_LOG_ERROR);
+    // esp_log_level_set("SYS", ESP_LOG_ERROR);
+    // esp_log_level_set("ROUTER", ESP_LOG_ERROR);
+    // esp_log_level_set("COM", ESP_LOG_ERROR);
+    // esp_log_level_set("TEST", ESP_LOG_ERROR);
+    // esp_log_level_set("WIFI", ESP_LOG_ERROR);
 
     // Intalling GPIO ISR service so that other parts of the code can
     // setup individual GPIO interrupt routines
     gpio_install_isr_service(ESP_INTR_FLAG_EDGE);
 
+    spi_transport_init();
+
     const uart_config_t uart_config = {
-      .baud_rate = 115200,
+      .baud_rate = 576000,
       .data_bits = UART_DATA_8_BITS,
       .parity = UART_PARITY_DISABLE,
       .stop_bits = UART_STOP_BITS_1,
@@ -289,30 +286,46 @@ void app_main()
     espTransportInit();
     uart_transport_init();
     com_init();
-    // esp_log_set_vprintf(cpx_and_uart_vprintf);
-    // system_init();
-    // discovery_init();
+
+    // // TODO krri remove test
+    // test_init();
+
+    /**
+     * @brief Initialize wifi mesh.
+     */
+    MDF_ERROR_ASSERT(mdf_event_loop_init(event_loop_cb));
+    MDF_ERROR_ASSERT(wifi_init());
+    MDF_ERROR_ASSERT(mwifi_init(&cfg));
+    MDF_ERROR_ASSERT(mwifi_set_config(&config));
+    MDF_ERROR_ASSERT(mwifi_start());
+
+#if defined(CONFIG_AGENT_ROLE_BASE)
+    router_init_bs();
+#elif defined(CONFIG_AGENT_ROLE_EXPLORER)
+    router_init();
+#endif
+
+    system_init();
+
+    discovery_init();
 
     /**
      * @brief Data transfer between wifi mesh devices
      */
 #if defined(CONFIG_AGENT_ROLE_BASE)
+    esp_log_set_vprintf(cpx_and_uart_vprintf);
     xTaskCreate(root_task, "root_task", 4 * 1024, NULL,
                 CONFIG_MDF_TASK_DEFAULT_PRIOTY, NULL);
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, NULL);
+
 #elif defined(CONFIG_AGENT_ROLE_EXPLORER)
-    spi_transport_init();
     xTaskCreate(wifi_sending_task, "wifi_sending_task", 4096,
                 NULL, 5, NULL);
     blink_on_period_ms = 2000;
     blink_off_period_ms = 100;
-    router_init();
 #endif
 
-//     // TimerHandle_t timer = xTimerCreate("log_stats", 1000 / portTICK_RATE_MS,
-//     //                                    true, NULL, log_stats_timercb);
-//     // xTimerStart(timer, 0);
-
+    xTaskCreate(log_stats_task, "log_stats_task", 2048, NULL, 6, NULL);
 
     while(1) {
         int i=0;
