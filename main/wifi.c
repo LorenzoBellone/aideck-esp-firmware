@@ -280,14 +280,14 @@ void wifi_bind_socket() {
 }
 
 void wifi_wait_for_socket_connected() {
-  ESP_LOGI(TAG, "Waiting for connection");
+  // ESP_LOGI(TAG, "Waiting for connection");
   struct sockaddr sourceAddr;
   uint addrLen = sizeof(sourceAddr);
   conn = accept(sock, (struct sockaddr *)&sourceAddr, &addrLen);
   if (conn < 0) {
     ESP_LOGE(TAG, "Unable to accept connection: errno %d", errno);
   }
-  ESP_LOGI(TAG, "Connection accepted");
+  // ESP_LOGI(TAG, "Connection accepted");
 }
 
 void wifi_wait_for_disconnect() {
@@ -314,7 +314,7 @@ void wifi_task(void *pvParameters) {
   while (1) {
     //blink_period_ms = 500;
     wifi_wait_for_socket_connected();
-    ESP_LOGI(TAG, "Client connected");
+    // ESP_LOGI(TAG, "Client connected");
 
     //blink_period_ms = 100;
 
