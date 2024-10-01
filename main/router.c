@@ -168,3 +168,23 @@ void router_init() {
 
   ESP_LOGI("ROUTER", "Initialized");
 }
+
+void router_init_bs() {
+  startUpEventGroup = xEventGroupCreate();
+  xEventGroupClearBits(startUpEventGroup, START_UP_GAP8_ROUTER_RUNNING | START_UP_CF_ROUTER_RUNNING | START_UP_ESP_ROUTER_RUNNING);
+
+  xTaskCreate(router_from_gap8, "Router from GAP8", 5000, NULL, 1, NULL);
+  xTaskCreate(router_from_crazyflie, "Router from CF", 5000, NULL, 1, NULL);
+  xTaskCreate(router_from_esp32, "Router from ESP32", 5000, NULL, 1, NULL);
+
+  ESP_LOGI("ROUTER", "Waiting for tasks to start");
+  xEventGroupWaitBits(startUpEventGroup,
+                      START_UP_CF_ROUTER_RUNNING |
+                      START_UP_GAP8_ROUTER_RUNNING |
+                      START_UP_ESP_ROUTER_RUNNING,
+                      pdTRUE, // Clear bits before returning
+                      pdTRUE, // Wait for all bits
+                      portMAX_DELAY);
+
+  ESP_LOGI("ROUTER", "Initialized");
+}

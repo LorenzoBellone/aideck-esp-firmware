@@ -30,3 +30,4 @@
 #include "com.h"
 
 void router_init();
+void router_init_bs();
