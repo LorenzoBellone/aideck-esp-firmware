@@ -299,17 +299,17 @@ void app_main()
     MDF_ERROR_ASSERT(mwifi_set_config(&config));
     MDF_ERROR_ASSERT(mwifi_start());
 
-#if defined(CONFIG_AGENT_ROLE_BASE)
-    router_init_bs();
-#elif defined(CONFIG_AGENT_ROLE_EXPLORER)
+#if defined(CONFIG_AGENT_ROLE_EXPLORER)
     router_init();
+#else
+    router_init_bs();
 #endif
-
-    esp_log_set_vprintf(cpx_and_uart_vprintf);
 
     system_init();
 
     discovery_init();
+
+    esp_log_set_vprintf(cpx_and_uart_vprintf);
 
     /**
      * @brief Data transfer between wifi mesh devices
@@ -322,8 +322,8 @@ void app_main()
 #elif defined(CONFIG_AGENT_ROLE_EXPLORER)
     xTaskCreate(wifi_sending_task, "wifi_sending_task", 4096,
                 NULL, 5, NULL);
-    blink_on_period_ms = 2000;
-    blink_off_period_ms = 100;
+    // blink_on_period_ms = 2000;
+    // blink_off_period_ms = 100;
 #endif
 
     xTaskCreate(log_stats_task, "log_stats_task", 2048, NULL, 6, NULL);
