@@ -305,6 +305,8 @@ void app_main()
     router_init();
 #endif
 
+    esp_log_set_vprintf(cpx_and_uart_vprintf);
+
     system_init();
 
     discovery_init();
@@ -313,7 +315,6 @@ void app_main()
      * @brief Data transfer between wifi mesh devices
      */
 #if defined(CONFIG_AGENT_ROLE_BASE)
-    esp_log_set_vprintf(cpx_and_uart_vprintf);
     xTaskCreate(root_task, "root_task", 4 * 1024, NULL,
                 CONFIG_MDF_TASK_DEFAULT_PRIOTY, NULL);
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, NULL);
