@@ -133,7 +133,7 @@ static void log_stats_task()
         }
         ESP_LOGI(TAG, "LAYER %d", esp_mesh_get_layer());
         ESP_LOGI(TAG, "NODES %d", esp_mesh_get_total_node_num());
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(2000));
     }
 }
 
@@ -317,16 +317,16 @@ void app_main()
 #if defined(CONFIG_AGENT_ROLE_BASE)
     xTaskCreate(root_task, "root_task", 4 * 1024, NULL,
                 CONFIG_MDF_TASK_DEFAULT_PRIOTY, NULL);
-    xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 5, NULL);
+    xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 1, NULL);
 
 #elif defined(CONFIG_AGENT_ROLE_EXPLORER)
     xTaskCreate(wifi_sending_task, "wifi_sending_task", 4096,
-                NULL, 5, NULL);
+                NULL, 1, NULL);
     // blink_on_period_ms = 2000;
     // blink_off_period_ms = 100;
 #endif
 
-    xTaskCreate(log_stats_task, "log_stats_task", 2048, NULL, 6, NULL);
+    xTaskCreate(log_stats_task, "log_stats_task", 2048, NULL, 5, NULL);
 
     while(1) {
         int i=0;
