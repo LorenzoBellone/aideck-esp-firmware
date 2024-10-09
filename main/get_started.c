@@ -271,7 +271,9 @@ void app_main()
     // setup individual GPIO interrupt routines
     gpio_install_isr_service(ESP_INTR_FLAG_EDGE);
 
-    spi_transport_init();
+    #if defined(CONFIG_AGENT_ROLE_EXPLORER)
+        spi_transport_init();
+    #endif
 
     const uart_config_t uart_config = {
       .baud_rate = 576000,
