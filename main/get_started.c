@@ -69,10 +69,15 @@ static void root_task(void *arg)
         MDF_ERROR_CONTINUE(ret != MDF_OK, "<%s> mwifi_root_read", mdf_err_to_name(ret));
         // MDF_LOGI("Root receive, addr: " MACSTR ", size: %d, data_type: %d", MAC2STR(src_addr), size, data_type.custom);
 
-        wifi_send_packet((const char*) data, size);
-        // MDF_LOGI("after root write %x", ret);
-        // MDF_ERROR_CONTINUE(ret != MDF_OK, "mwifi_root_recv, ret: %x", ret);
-        // MDF_LOGI("Root send, addr: " MACSTR ", size: %d, data: %s", MAC2STR(src_addr), size, data);
+        switch (data_type.custom)
+        {
+        case 1:
+            wifi_send_packet((const char*) data, size);
+            // MDF_LOGI("after root write %x", ret);
+            // MDF_ERROR_CONTINUE(ret != MDF_OK, "mwifi_root_recv, ret: %x", ret);
+            // ESP_LOGI(TAG, "Root send, addr: " MACSTR ", size: %d, data: %s", MAC2STR(src_addr), size, data);
+            break;
+        }
     }
 
     MDF_LOGW("Root is exit");
@@ -299,18 +304,6 @@ void app_main()
     MDF_ERROR_ASSERT(mwifi_set_config(&config));
     MDF_ERROR_ASSERT(mwifi_start());
 
-#if defined(CONFIG_AGENT_ROLE_EXPLORER)
-    router_init();
-#else
-    router_init_bs();
-#endif
-
-    system_init();
-
-    discovery_init();
-
-    esp_log_set_vprintf(cpx_and_uart_vprintf);
-
     /**
      * @brief Data transfer between wifi mesh devices
      */
@@ -325,6 +318,18 @@ void app_main()
     // blink_on_period_ms = 2000;
     // blink_off_period_ms = 100;
 #endif
+
+#if defined(CONFIG_AGENT_ROLE_EXPLORER)
+    router_init();
+#else
+    router_init_bs();
+#endif
+
+    system_init();
+
+    discovery_init();
+
+    esp_log_set_vprintf(cpx_and_uart_vprintf);
 
     xTaskCreate(log_stats_task, "log_stats_task", 2048, NULL, 5, NULL);
 
