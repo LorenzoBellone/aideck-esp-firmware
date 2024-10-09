@@ -63,7 +63,7 @@ static const int WIFI_SOCKET_DISCONNECTED = BIT1;
 static EventGroupHandle_t s_wifi_event_group;
 
 // static const int START_UP_MAIN_TASK = BIT0;
-// static const int START_UP_RX_TASK = BIT1;
+static const int START_UP_RX_TASK = BIT1;
 // static const int START_UP_TX_TASK = BIT2;
 static const int START_UP_CTRL_TASK = BIT3;
 static EventGroupHandle_t startUpEventGroup;
