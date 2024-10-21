@@ -311,7 +311,7 @@ void app_main()
      */
 #if defined(CONFIG_AGENT_ROLE_BASE)
     xTaskCreate(root_task, "root_task", 4 * 1024, NULL,
-                CONFIG_MDF_TASK_DEFAULT_PRIOTY, NULL);
+                1, NULL);
     xTaskCreate(wifi_task, "wifi_task", 4096, NULL, 1, NULL);
 
 #elif defined(CONFIG_AGENT_ROLE_EXPLORER)
